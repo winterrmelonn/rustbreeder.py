@@ -1,0 +1,102 @@
+<!doctype html>
+<!-- The web version of gui.py: same layout, same colours. All scoring and
+     planning happens in Python via /api/plan — no genetics in this file. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>rustbreeder</title>
+<style>
+  :root { --bg:#22252a; --panel:#2b2f36; --text:#e6e6e6; --muted:#8b929c; --accent:#3d9970; }
+  body { background:var(--bg); color:var(--text); font:14px -apple-system, system-ui, sans-serif; margin:0; padding:14px 16px; }
+  h2 { color:var(--muted); font-size:12px; letter-spacing:.05em; margin:14px 0 6px; }
+  form { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+  input { background:var(--panel); color:var(--text); border:0; padding:7px; width:8ch; text-align:center; font:bold 14px Menlo, monospace; text-transform:uppercase; }
+  button { background:var(--accent); color:#fff; border:0; padding:7px 16px; font-weight:bold; cursor:pointer; }
+  button:hover { background:#4cb88d; }
+  button.small { background:var(--panel); color:var(--muted); padding:2px 8px; font-weight:normal; font-size:12px; }
+  .muted { color:var(--muted); font-size:12px; }
+  .error { color:#e06c6c; min-height:1.2em; margin:6px 0 0; }
+  .row { display:flex; align-items:center; gap:8px; margin:3px 0; }
+  .tiles { display:inline-flex; gap:2px; }
+  .tiles span { width:2ch; text-align:center; color:#fff; font:bold 13px Menlo, monospace; padding:2px 0; }
+  .G{background:#3d9970} .Y{background:#7fb800} .H{background:#2e8b8b} .W{background:#d64545} .X{background:#8b3a3a}
+  .bold { font-weight:bold; font-size:15px; margin:10px 0; }
+  .grids { display:flex; flex-wrap:wrap; gap:24px; margin-top:10px; }
+  .grid { display:grid; grid-template-columns:repeat(3, minmax(0, 150px)); gap:6px; }
+  .grids > div { flex:1 1 300px; }
+  @media (max-width:520px) { .tiles span { width:1.6ch; font-size:11px; } }
+  .cell { background:var(--panel); height:62px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; }
+  .cell .muted { font-size:11px; }
+  .empty { color:#555b63; }
+</style>
+</head>
+<body>
+  <form id="entry">
+    <h2 style="margin:0">PLANT GENES</h2>
+    <input id="genes" maxlength="6" autocomplete="off" aria-label="Plant genes">
+    <button>Add</button>
+    <span class="muted">6 letters · G Y H X W</span>
+  </form>
+  <p class="error" id="error" role="alert"></p>
+
+  <h2>YOUR PLANTS</h2>
+  <div id="list"></div>
+  <p class="bold" id="best"></p>
+  <button id="finalize">Finalize layout</button>
+  <p class="bold" id="total"></p>
+
+  <div class="grids">
+    <div><h2>PLANT HERE</h2><div class="grid" id="plantGrid"></div></div>
+    <div><h2>RESULTS</h2><div class="grid" id="resultGrid"></div></div>
+  </div>
+
+<script>
+const $ = id => document.getElementById(id);
+let plants = [];
+
+// Same as gui.py's gene_tiles(): six coloured squares, one per gene.
+const tiles = g => `<span class="tiles">${[...g].map(x => `<span class="${x}">${x}</span>`).join("")}</span>`;
+
+async function api() {
+  const res = await fetch("/api/plan?plants=" + plants.join(","));
+  const body = await res.json();
+  if (body.error) $("error").textContent = body.error;
+  return res.ok ? body : null;
+}
+
+async function refresh() {
+  if (!plants.length) { $("list").innerHTML = $("best").textContent = ""; return; }
+  const out = await api();
+  if (!out) return;
+  $("list").innerHTML = plants.map((g, i) => `<div class="row">${tiles(g)}
+    <span class="muted">score ${out.scores[i]}</span>
+    <button class="small" onclick="edit(${i})">edit</button>
+    <button class="small" onclick="removePlant(${i})" aria-label="remove">✕</button></div>`).join("");
+  $("best").textContent = `Best plant: ${out.best}  ·  score ${out.scores[plants.indexOf(out.best)]}`;
+}
+
+$("entry").onsubmit = e => {
+  e.preventDefault();
+  const g = $("genes").value.toUpperCase();
+  if (!/^[GYHXW]{6}$/.test(g)) { $("error").textContent = "Invalid gene: need exactly 6 letters from G/Y/H/X/W."; return; }
+  $("error").textContent = ""; $("genes").value = "";
+  plants.push(g); refresh();
+};
+
+function removePlant(i) { plants.splice(i, 1); refresh(); }
+function edit(i) { $("genes").value = plants.splice(i, 1)[0]; $("genes").focus(); refresh(); }
+
+$("finalize").onclick = async () => {
+  if (!plants.length) { $("error").textContent = "Add at least one plant before finalizing."; return; }
+  const out = await api();
+  if (!out) return;
+  $("total").textContent = `Total score ${out.fitness}`;
+  const cells = (grid, extra) => grid.flatMap((row, r) => row.map((g, c) =>
+    `<div class="cell">${g ? tiles(g) + extra(r, c) : '<span class="empty">—</span>'}</div>`)).join("");
+  $("plantGrid").innerHTML = cells(out.plant, () => "");
+  $("resultGrid").innerHTML = cells(out.result, (r, c) => `<span class="muted">score ${out.result_scores[r][c]}</span>`);
+};
+</script>
+</body>
+</html>
