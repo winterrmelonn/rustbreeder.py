@@ -16,3 +16,9 @@ Python program assigns a value to each gene and ranks the user's held plants.
 Runs a program to solve for the best possible plant outcome. (following Rust's own crossbreeding rules: read more on the actual rustbreeder website: https://rustbreeder.com/guide/)
 
 Clean UI displaying where you should plant your plants, and the resulting plants once they've matured.
+
+Live deployment at: https://rustbreeder.vercel.app/
+Run locally:
+git clone https://github.com/winterrmelonn/rustbreeder.py.git
+cd rustbreeder.py
+python3 gui.py (requires Tkinter and Python v2.8 or newer)
