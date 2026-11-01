@@ -18,7 +18,9 @@ Runs a program to solve for the best possible plant outcome. (following Rust's o
 Clean UI displaying where you should plant your plants, and the resulting plants once they've matured.
 
 Live deployment at: https://rustbreeder.vercel.app/
-Run locally:
+Run locally (requires Python 3.8 or newer with Tkinter):
+```bash
 git clone https://github.com/winterrmelonn/rustbreeder.py.git
 cd rustbreeder.py
-python3 gui.py (requires Tkinter and Python v2.8 or newer)
+python3 gui.py
+```
